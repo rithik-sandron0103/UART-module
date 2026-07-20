@@ -15,7 +15,10 @@ module Top_tb();
     assign rxline = txline;
 
     // Unit Under Test (UUT) Instantiation
-    Top uut(
+    Top #(
+        .CLK_FREQ(50000000),
+        .BAUD_RATE(5000000)
+    )uut(
         .clk(clk),
         .rst(rst),
         .rxline(rxline),
@@ -32,9 +35,9 @@ module Top_tb();
 
     // Reset Control
     initial begin
-        rst = 1;
+        rst = 1'b1;
         #100;
-        rst = 0;
+        rst = 1'b0;
     end
 
     // Waveform Generation
@@ -51,7 +54,7 @@ module Top_tb();
 
     // Termination
     initial begin
-        #1000000000 // Run simulation for 1 ms of simulated time
+        #500000; // Run simulation for 500 us of simulated time
         $finish;
     end
 

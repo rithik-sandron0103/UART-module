@@ -1,8 +1,17 @@
-module Rx(input clk,
+module Rx #(
+    parameter integer CLK_FREQ = 50000000,  // System clock frequency in Hz
+    parameter integer BAUD_RATE = 115200    // Baud rate in bps
+)
+         (input clk,
           input rst,
           input rx,                  // Serial UART reception input line
           output reg [7:0] data_out, // Parallel data byte received
           output reg rx_done);
+
+    // Local Parameter Calculations
+    localparam integer CLK_PER_BIT = CLK_FREQ / BAUD_RATE;
+    localparam integer MID_POINT = CLK_PER_BIT / 2;         // Midpoint count for sampling the start bit accurately
+    localparam integer COUNTER_WIDTH = $clog2(CLK_PER_BIT); // Ceiling of log base 2 => minimum number of bits required to represent 'clock per bit'
 
     parameter IDLE = 3'd0,
              START = 3'd1,
@@ -16,7 +25,7 @@ module Rx(input clk,
     always @(*) begin
         case(state)
             IDLE: next_state = rx ? IDLE : START;
-            START: next_state = (count == 14'd2599) ? DATA : START; // Mid-bit Sampling
+            START: next_state = (count == MID_POINT - 1) ? DATA : START; // Mid-bit Sampling
             DATA: next_state = (bit_counter == 4'd7) && baud_tick ? STOP : DATA;
             STOP: next_state = baud_tick ? DONE : STOP;
             DONE: next_state = IDLE;
@@ -24,16 +33,16 @@ module Rx(input clk,
         endcase
     end
 
-    reg baud_tick;
-    reg [13:0] count;
-    reg [3:0] bit_counter;
+    reg baud_tick;            // High for 1 clock cycle at each baud rate interval
+    reg [13:0] count;         // Baud rate generator counter
+    reg [3:0] bit_counter;    // Counts the number of data bits transmitted (0 to 7)
     reg [7:0] rx_data_buffer; // Internal shift register to assemble incoming serial bits
 
     // Sequential logic
     always @(posedge clk) begin
         if (rst) begin
             state <= IDLE;
-            count <= 14'b0;
+            count <= {COUNTER_WIDTH{1'b0}};
             bit_counter <= 4'b0;
             rx_data_buffer <= 8'b0;
             rx_done <= 1'b0;
@@ -44,15 +53,15 @@ module Rx(input clk,
             // Flagging done
             rx_done <= (state == DONE);
 
-            //Baud Tick Generator
+            // Baud Tick Generator
             if (state == IDLE) begin
-                count <= 14'b0;
+                count <= {COUNTER_WIDTH{1'b0}};
                 baud_tick <= 1'b0;
             end
             else begin
-                if (count == 14'd5199) begin
+                if (count == CLK_PER_BIT - 1) begin
                     baud_tick <= 1'b1;
-                    count <= 14'b0;
+                    count <= {COUNTER_WIDTH{1'b0}};
                 end
                 else begin 
                     baud_tick <= 1'b0;
@@ -63,9 +72,9 @@ module Rx(input clk,
             // Datapath Operations
             case(state)
                 START: begin
-                    if (count == 14'd2599) begin //Reset counter at midpoint of start bit
-                        count <= 0;
-                        bit_counter <= 0;
+                    if (count == MID_POINT - 1) begin //Reset counter at midpoint of start bit
+                        count <= {COUNTER_WIDTH{1'b0}};
+                        bit_counter <= 4'b0;
                     end
                 end
                 DATA: begin

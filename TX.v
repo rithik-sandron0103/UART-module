@@ -1,10 +1,18 @@
-module Tx(input clk, 
+module Tx #(
+    parameter integer CLK_FREQ = 50000000,  // System clock frequency in Hz
+    parameter integer BAUD_RATE = 115200    // Baud rate in bps
+)
+         (input clk, 
           input rst, 
           input txstart,
           input [7:0] data_in,  // Parallel data byte to be transmitted
           output reg tx,        // Serial UART transmission output line
           output txbusy
           );
+
+    // Local Parameter Calculations
+    localparam integer CLK_PER_BIT = CLK_FREQ / BAUD_RATE;
+    localparam integer COUNTER_WIDTH = $clog2(CLK_PER_BIT); // Ceiling of log base 2 => minimum number of bits required to represent 'clock per bit'
 
     parameter IDLE = 3'd0,
              START = 3'd1,
@@ -26,24 +34,24 @@ module Tx(input clk,
         endcase
     end
 
-    reg baud_tick;            // High for 1 clock cycle at each baud rate interval
-    reg [13:0] count;         // Baud rate generator counter (Counts from 0 to 5199)
-    reg [3:0] bit_counter;    // Counts the number of data bits transmitted (0 to 7)
-    reg [7:0] tx_data_buffer; // Internal shift register to hold and serialize data
+    reg baud_tick;                         // High for 1 clock cycle at each baud rate interval
+    reg [COUNTER_WIDTH-1:0] count;         // Baud rate generator counter
+    reg [3:0] bit_counter;                 // Counts the number of data bits transmitted (0 to 7)
+    reg [7:0] tx_data_buffer;              // Internal shift register to hold and serialize data
 
     // Sequential logic
     always @(posedge clk) begin
         if (rst) begin            
             state <= IDLE;
-            count <= 14'b0;
+            count <= {COUNTER_WIDTH{1'b0}};
             baud_tick <= 1'b0;
             bit_counter <= 4'b0;
             tx_data_buffer <= 8'b0;
         end
         else begin
             // Baud rate generator
-            if (count == 14'd5199) begin
-                count <= 14'b0;
+            if (count == CLK_PER_BIT - 1) begin
+                count <= {COUNTER_WIDTH{1'b0}};
                 baud_tick <= 1'b1;
             end
             else begin
@@ -74,7 +82,7 @@ module Tx(input clk,
     always @(*) begin
         case(state)
             START: tx <= 1'b0;
-            DATA: tx <= tx_data_buffer[0]; //Since the LSB gets updated for every baud_tick, the input comes out sequentially
+            DATA: tx <= tx_data_buffer[0]; // Since the LSB gets updated for every baud_tick, the input comes out sequentially
             default: tx <= 1'b1;
         endcase
     end

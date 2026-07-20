@@ -1,4 +1,8 @@
-module Top(input clk,
+module Top #(
+    parameter integer CLK_FREQ  = 50000000,
+    parameter integer BAUD_RATE = 115200
+)
+          (input clk,
            input rst,
            input rxline,
            output txline,
@@ -22,7 +26,10 @@ module Top(input clk,
 
     // UART Transmitter (Tx) Instantiation
     // Serializes the parallel bytes received from the producer
-    Tx transmitter(
+    Tx #(
+        .CLK_FREQ(CLK_FREQ),
+        .BAUD_RATE(BAUD_RATE)
+    )transmitter(
         .clk(clk),
         .rst(rst),
         .txstart(startwire),
@@ -33,7 +40,10 @@ module Top(input clk,
 
     // UART Receiver (Rx) Instantiation
     // Samples the incoming serial line (rxline) and converts the bitstream back into a parallel bytes
-    Rx receiver(
+    Rx #(
+        .CLK_FREQ(CLK_FREQ),
+        .BAUD_RATE(BAUD_RATE)
+    )receiver(
         .clk(clk),
         .rst(rst),
         .rx(rxline),
