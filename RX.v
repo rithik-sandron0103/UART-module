@@ -1,18 +1,23 @@
 module Rx(input clk,
           input rst,
-          input rx,
-          output reg [7:0] data_out,
+          input rx,                  // Serial UART reception input line
+          output reg [7:0] data_out, // Parallel data byte received
           output reg rx_done);
 
-    parameter IDLE = 0, START = 1, DATA = 2, STOP = 3, DONE = 4;
+    parameter IDLE = 3'd0,
+             START = 3'd1,
+              DATA = 3'd2,
+              STOP = 3'd3,
+              DONE = 3'd4;
+
     reg [2:0] state, next_state;
 
-    //Combinational block
+    // Next-State Combinational logic
     always @(*) begin
         case(state)
             IDLE: next_state = rx ? IDLE : START;
-            START: next_state = (count == 2599) ? DATA : START;
-            DATA: next_state = (bit_counter == 7) && baud_tick ? STOP : DATA;
+            START: next_state = (count == 14'd2599) ? DATA : START; // Mid-bit Sampling
+            DATA: next_state = (bit_counter == 4'd7) && baud_tick ? STOP : DATA;
             STOP: next_state = baud_tick ? DONE : STOP;
             DONE: next_state = IDLE;
             default: next_state = IDLE;
@@ -22,40 +27,43 @@ module Rx(input clk,
     reg baud_tick;
     reg [13:0] count;
     reg [3:0] bit_counter;
-    reg [7:0] rx_data_buffer;
+    reg [7:0] rx_data_buffer; // Internal shift register to assemble incoming serial bits
 
-    //Sequential block
+    // Sequential logic
     always @(posedge clk) begin
         if (rst) begin
-            count <= 0;
-            bit_counter <= 0;
-            rx_data_buffer <= 0;
-            state <= 0;
-            rx_done <= 0;
+            state <= IDLE;
+            count <= 14'b0;
+            bit_counter <= 4'b0;
+            rx_data_buffer <= 8'b0;
+            rx_done <= 1'b0;
         end
         else begin
+            // State Updation
             state <= next_state;
+            // Flagging done
             rx_done <= (state == DONE);
 
             //Baud Tick Generator
             if (state == IDLE) begin
-                count <= 0;
-                baud_tick <= 0;
+                count <= 14'b0;
+                baud_tick <= 1'b0;
             end
             else begin
-                if (count == 5199) begin
-                    baud_tick <= 1;
-                    count <= 0;
+                if (count == 14'd5199) begin
+                    baud_tick <= 1'b1;
+                    count <= 14'b0;
                 end
                 else begin 
-                    baud_tick <= 0;
+                    baud_tick <= 1'b0;
                     count <= count+1;
                 end
             end
-            //16x over-sampling
+
+            // Datapath Operations
             case(state)
                 START: begin
-                    if (count == 2599) begin //Reset counter at midpoint of start bit
+                    if (count == 14'd2599) begin //Reset counter at midpoint of start bit
                         count <= 0;
                         bit_counter <= 0;
                     end
@@ -63,7 +71,7 @@ module Rx(input clk,
                 DATA: begin
                     if (baud_tick) begin
                         bit_counter <= bit_counter+1;
-                        rx_data_buffer <= {rx,rx_data_buffer[7:1]}; //Shift in MSB-to-LSB
+                        rx_data_buffer <= {rx,rx_data_buffer[7:1]}; // Shift incoming serial bit into the MSB position
                     end
                 end
                 STOP: if (baud_tick) data_out <= rx_data_buffer;

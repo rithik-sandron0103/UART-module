@@ -5,11 +5,13 @@ module Top(input clk,
            output [7:0] received_data,
            output packet_recieved);
 
+    // Internal interconnect wires
     wire [7:0] producer_data;
     wire startwire;
     wire busywire;
 
-    //Instantiation
+    // Producer Instantiation
+    // Continuously generates an incrementing stream of data bytes when the transmitter is idle
     Producer producer(
         .clk(clk),
         .rst(rst),
@@ -18,6 +20,8 @@ module Top(input clk,
         .data_out(producer_data)
     );
 
+    // UART Transmitter (Tx) Instantiation
+    // Serializes the parallel bytes received from the producer
     Tx transmitter(
         .clk(clk),
         .rst(rst),
@@ -27,6 +31,8 @@ module Top(input clk,
         .txbusy(busywire)
     );
 
+    // UART Receiver (Rx) Instantiation
+    // Samples the incoming serial line (rxline) and converts the bitstream back into a parallel bytes
     Rx receiver(
         .clk(clk),
         .rst(rst),
