@@ -18,7 +18,7 @@ The software stack used is:
 To compile and run the provided testbench, use the following commands in your terminal:
 ```bash
 # Compile the design
-iverilog -o dsn Top_tb.v Top.v Tx.v Rx.v Producer.v
+iverilog -o dsn testbench.v top_module.v Tx.v Rx.v Producer.v
 # Run the simulation
 vvp dsn
 # Open the waveform in GTKWave
