@@ -9,7 +9,7 @@ module Producer(input clk,
 
     // Registering tx_busy for falling-edge detection
     always @(posedge clk) begin
-        if (rst) txbusy_delayed <= 1;
+        if (rst) txbusy_delayed <= 1'b1;
         else txbusy_delayed <= txbusy;     
     end
 
@@ -20,11 +20,11 @@ module Producer(input clk,
         end
         else begin
             // Detecting falling edge of tx_busy
-            if (txbusy_delayed && !txbusy) txstart <= 1;
-            else txstart <= 0; 
+            if (txbusy_delayed && !txbusy) txstart <= 1'b1;
+            else txstart <= 1'b0; 
 
             // Increment data payload right when transmission starts
-            if (txstart) begin
+            if (txbusy_delayed && !txbusy) begin
                 if (data_out == 8'd255) data_out <= 8'd0;
                 else data_out <= data_out+1;
             end
