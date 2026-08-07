@@ -27,7 +27,7 @@ module Tx #(
         case(state)
         IDLE: next_state = txstart ? START : IDLE; 
         START: next_state = baud_tick ? DATA : START;
-        DATA: next_state = (bit_counter == 4'd7) && baud_tick ? STOP : DATA;
+        DATA: next_state = (bit_counter == 3'd7) && baud_tick ? STOP : DATA;
         STOP: next_state = baud_tick ? DONE : STOP;
         DONE: next_state = IDLE;
         default: next_state = IDLE;
@@ -36,7 +36,7 @@ module Tx #(
 
     reg baud_tick;                         // High for 1 clock cycle at each baud rate interval
     reg [COUNTER_WIDTH-1:0] count;         // Baud rate generator counter
-    reg [3:0] bit_counter;                 // Counts the number of data bits transmitted (0 to 7)
+    reg [2:0] bit_counter;                 // Counts the number of data bits transmitted (0 to 7)
     reg [7:0] tx_data_buffer;              // Internal shift register to hold and serialize data
 
     // Sequential logic
@@ -45,7 +45,7 @@ module Tx #(
             state <= IDLE;
             count <= {COUNTER_WIDTH{1'b0}};
             baud_tick <= 1'b0;
-            bit_counter <= 4'b0;
+            bit_counter <= 3'b0;
             tx_data_buffer <= 8'b0;
         end
         else begin
@@ -65,7 +65,7 @@ module Tx #(
             // Datapath operations for each state
             case(state)
                 IDLE: if (txstart) tx_data_buffer <= data_in; // Capture parallel input byte into buffer
-                START: if (baud_tick) bit_counter <= 4'b0;// Reset bit counter at the start of data transmission
+                START: if (baud_tick) bit_counter <= 3'b0;// Reset bit counter at the start of data transmission
                 DATA: begin
                     if (baud_tick) begin
                         bit_counter <= bit_counter+1;

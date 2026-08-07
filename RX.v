@@ -26,24 +26,24 @@ module Rx #(
         case(state)
             IDLE: next_state = rx ? IDLE : START;
             START: next_state = (count == MID_POINT - 1) ? DATA : START; // Mid-bit Sampling
-            DATA: next_state = (bit_counter == 4'd7) && baud_tick ? STOP : DATA;
+            DATA: next_state = (bit_counter == 3'd7) && baud_tick ? STOP : DATA;
             STOP: next_state = baud_tick ? DONE : STOP;
             DONE: next_state = IDLE;
             default: next_state = IDLE;
         endcase
     end
 
-    reg baud_tick;            // High for 1 clock cycle at each baud rate interval
-    reg [13:0] count;         // Baud rate generator counter
-    reg [3:0] bit_counter;    // Counts the number of data bits transmitted (0 to 7)
-    reg [7:0] rx_data_buffer; // Internal shift register to assemble incoming serial bits
+    reg baud_tick;                         // High for 1 clock cycle at each baud rate interval
+    reg [COUNTER_WIDTH-1:0] count;         // Baud rate generator counter
+    reg [2:0] bit_counter;                 // Counts the number of data bits transmitted (0 to 7)
+    reg [7:0] rx_data_buffer;              // Internal shift register to assemble incoming serial bits
 
     // Sequential logic
     always @(posedge clk) begin
         if (rst) begin
             state <= IDLE;
             count <= {COUNTER_WIDTH{1'b0}};
-            bit_counter <= 4'b0;
+            bit_counter <= 3'b0;
             rx_data_buffer <= 8'b0;
             rx_done <= 1'b0;
         end
@@ -74,7 +74,7 @@ module Rx #(
                 START: begin
                     if (count == MID_POINT - 1) begin //Reset counter at midpoint of start bit
                         count <= {COUNTER_WIDTH{1'b0}};
-                        bit_counter <= 4'b0;
+                        bit_counter <= 3'b0;
                     end
                 end
                 DATA: begin
